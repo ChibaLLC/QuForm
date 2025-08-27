@@ -23,11 +23,6 @@ services:
       PHP_POST_MAX_SIZE: "64M"
     env_file:
       - ./api/.env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy # Depend on redis being healthy too
     healthcheck:
       test: ["CMD-SHELL", "php /usr/share/nginx/html/artisan about || exit 1"]
       interval: 30s
@@ -104,6 +99,4 @@ services:
       start_period: 10s
 
 volumes:
-  postgres-data:
   opnform_storage:
-  redis-data:
