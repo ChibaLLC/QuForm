@@ -4,9 +4,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    container_name: sutit-api
+    container_name: opnform-api
     volumes: &api-environment-volumes
-      - sutit_storage:/usr/share/nginx/html/storage:rw
+      - opnform_storage:/usr/share/nginx/html/storage:rw
     environment: &api-env
       APP_ENV: production
       # Database settings
@@ -37,7 +37,7 @@ services:
 
   api-worker:
     <<: *api-environment
-    container_name: sutit-api-worker
+    container_name: opnform-api-worker
     command: ["php", "artisan", "queue:work"]
     environment:
       <<: *api-env
@@ -52,7 +52,7 @@ services:
 
   api-scheduler:
     <<: *api-environment
-    container_name: sutit-api-scheduler
+    container_name: opnform-api-scheduler
     command: ["php", "artisan", "schedule:work"]
     environment:
       <<: *api-env
@@ -72,7 +72,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.client
-    container_name: sutit-client
+    container_name: opnform-client
     env_file:
       - ./client/.env
     healthcheck:
@@ -84,7 +84,7 @@ services:
       start_period: 45s
   ingress:
     image: nginx:1
-    container_name: sutit-ingress
+    container_name: opnform-ingress
     volumes:
       - ./docker/nginx.conf:/etc/nginx/templates/default.conf.template
     ports:
@@ -105,5 +105,5 @@ services:
 
 volumes:
   postgres-data:
-  sutit_storage:
+  opnform_storage:
   redis-data:
