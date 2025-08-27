@@ -1,9 +1,7 @@
 ---
 services:
   api: &api-environment
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.api
+    image: ghcr.io/chiballc/quform/api:latest
     container_name: opnform-api
     volumes: &api-environment-volumes
       - opnform_storage:/usr/share/nginx/html/storage:rw
@@ -64,9 +62,7 @@ services:
       start_period: 70s # Allow time for first scheduled run and cache write
 
   ui:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.client
+    image: ghcr.io/chiballc/quform/client:latest
     container_name: opnform-client
     env_file:
       - ./client/.env
