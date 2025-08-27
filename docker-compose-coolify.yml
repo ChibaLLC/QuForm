@@ -10,8 +10,8 @@ services:
     environment: &api-env
       APP_ENV: production
       # Database settings
-      DB_HOST: db
-      REDIS_HOST: redis
+      DB_HOST: ${DB_HOST:-db}
+      REDIS_HOST: ${REDIS_HOST:-redis}
       DB_DATABASE: ${DB_DATABASE:-forge}
       DB_USERNAME: ${DB_USERNAME:-forge}
       DB_PASSWORD: ${DB_PASSWORD:-forge}
