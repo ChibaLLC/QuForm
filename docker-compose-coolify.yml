@@ -33,6 +33,7 @@ services:
     <<: *api-environment
     container_name: opnform-api-worker
     command: ["php", "artisan", "queue:work"]
+    ports: []
     environment:
       <<: *api-env
       APP_ENV: production
@@ -48,6 +49,7 @@ services:
     <<: *api-environment
     container_name: opnform-api-scheduler
     command: ["php", "artisan", "schedule:work"]
+    ports: []
     environment:
       <<: *api-env
       APP_ENV: production
