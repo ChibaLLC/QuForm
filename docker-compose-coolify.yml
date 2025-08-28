@@ -5,7 +5,7 @@ services:
     ports:
       - "8005:80" # host:container
     volumes: &api-environment-volumes
-      - - quform:/var/www/html
+      - quform:/var/www/html
     environment: &api-env
       APP_ENV: production
       # Database settings
