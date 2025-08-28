@@ -1,83 +1,75 @@
 # -----------------------
 # Builder stage: PHP CLI + Composer
 # -----------------------
-FROM php:8.4-cli-alpine AS builder
+FROM php:8.3-cli AS builder
+
+# Install composer and extensions needed for dependency installation
+RUN apt-get update && apt-get install -y \
+    libzip-dev \
+    libpng-dev \
+    unzip \
+    git \
+    && docker-php-ext-install -j$(nproc) \
+    bcmath \
+    gd \
+    zip \
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache --virtual .build-deps \
-    autoconf \
-    g++ \
-    make \
-    freetype-dev \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    icu-dev \
-    libzip-dev \
-    oniguruma-dev \
-    postgresql-dev
-
-# Install runtime libraries
-RUN apk add --no-cache \
-    freetype \
-    libpng \
-    libjpeg-turbo \
-    icu-libs \
-    oniguruma
-
-# Configure and install PHP extensions
-RUN docker-php-ext-configure gd \
-    --with-freetype=/usr/include/freetype2 \
-    --with-jpeg=/usr/include \
-    && docker-php-ext-install -j$(nproc) \
-    gd \
-    zip \
-    intl \
-    mbstring \
-    pdo_pgsql \
-    pgsql \
-    bcmath \
-    pcntl \
-    exif \
-    opcache \
-    xml
-
-# Install Redis
-RUN pecl install redis \
-    && docker-php-ext-enable redis
-
-# Remove build dependencies to reduce image size
-RUN apk del .build-deps# 4. Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# 5. Copy application and install dependencies
+# Copy the entire source code for proper installation
 COPY api/ .
-ENV COMPOSER_MEMORY_LIMIT=-1
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+# Install dependencies including dev dependencies
+RUN composer install --optimize-autoloader --no-interaction \
+    --ignore-platform-req=php \
+    --ignore-platform-req=ext-bcmath \
+    --ignore-platform-req=ext-gd
 # -----------------------
 # Final production stage
 # -----------------------
-FROM php:8.4-fpm-alpine
+FROM php:8.3-fpm-alpine
+
+# Accept version build argument
+ARG APP_VERSION=unknown
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    libzip \
+    libpng \
+    postgresql-client \
+    libpq \
+    procps \
+    unzip \
+    bash \
+    icu-libs \
+    && rm -rf /var/cache/apk/*
+
+# Install build dependencies and PHP extensions
+RUN apk add --no-cache --virtual .build-deps \
+    $PHPIZE_DEPS \
+    libzip-dev \
+    libpng-dev \
+    postgresql-dev \
+    oniguruma-dev \
+    icu-dev \
+    && docker-php-ext-configure pgsql \
+    && docker-php-ext-configure gd \
+    && docker-php-ext-install -j$(nproc) \
+    pdo \
+    zip \
+    gd \
+    pgsql \
+    pdo_pgsql \
+    bcmath \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .build-deps
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Install runtime dependencies
-RUN apk add --no-cache \
-    bash \
-    curl \
-    git \
-    unzip \
-    zip \
-    libpng \
-    freetype \
-    libjpeg-turbo \
-    icu-libs \
-    oniguruma \
-    postgresql-client \
-    supervisor \
-    nginx
+
 
 # Copy PHP extensions from builder (compiled extensions)
 COPY --from=builder /usr/local/lib/php/extensions /usr/local/lib/php/extensions
