@@ -3,7 +3,7 @@ services:
     image: ghcr.io/chiballc/quform/api:latest
     container_name: opnform-api
     ports:
-      - "8050:80" # host:container
+      - "9050:80" # host:container
     volumes: &api-environment-volumes
       - quform:/var/www/html
     environment: &api-env
