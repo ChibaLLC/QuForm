@@ -1,10 +1,61 @@
-# Laravel API Dockerfile - Optimized for Coolify with PostgreSQL
+# -----------------------
+# Builder stage: PHP CLI + Composer
+# -----------------------
+FROM php:8.4-cli-alpine AS builder
 
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies needed for PHP extensions & Composer
+RUN apk add --no-cache \
+    bash \
+    git \
+    unzip \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    icu-dev \
+    oniguruma-dev \
+    postgresql-dev \
+    $PHPIZE_DEPS \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+    gd \
+    zip \
+    intl \
+    mbstring \
+    pdo_pgsql \
+    pgsql \
+    bcmath \
+    pcntl \
+    exif \
+    opcache \
+    xml \
+    && pecl install redis \
+    && docker-php-ext-enable redis
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Copy application code
+COPY api/ .
+
+# Set PHP memory for Composer
+ENV COMPOSER_MEMORY_LIMIT=-1
+
+# Install PHP dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+# -----------------------
+# Final production stage
+# -----------------------
 FROM php:8.4-fpm-alpine
 
-# ----------------------
-# Runtime dependencies
-# ----------------------
+# Set working directory
+WORKDIR /var/www/html
+
+# Install runtime dependencies
 RUN apk add --no-cache \
     bash \
     curl \
@@ -20,84 +71,26 @@ RUN apk add --no-cache \
     supervisor \
     nginx
 
-# ----------------------
-# Build dependencies + PHP extensions
-# ----------------------
-RUN apk add --no-cache --virtual .build-deps \
-    $PHPIZE_DEPS \
-    libpng-dev \
-    freetype-dev \
-    libjpeg-turbo-dev \
-    libzip-dev \
-    icu-dev \
-    oniguruma-dev \
-    postgresql-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) \
-    gd \
-    zip \
-    intl \
-    mbstring \
-    opcache \
-    pcntl \
-    bcmath \
-    exif \
-    pdo_pgsql \
-    pgsql \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apk del .build-deps
+# Copy PHP extensions from builder (compiled extensions)
+COPY --from=builder /usr/local/lib/php/extensions /usr/local/lib/php/extensions
+COPY --from=builder /usr/local/etc/php/conf.d /usr/local/etc/php/conf.d
 
-# ----------------------
-# Install Composer
-# ----------------------
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# Copy Composer vendor folder
+COPY --from=builder /app/vendor ./vendor
+COPY --from=builder /app/ .
 
-# ----------------------
-# PHP production config
-# ----------------------
-RUN echo 'memory_limit=512M' >> /usr/local/etc/php/conf.d/docker-php-memlimit.ini \
-    && echo 'max_execution_time=300' >> /usr/local/etc/php/conf.d/docker-php-maxexectime.ini \
-    && echo 'opcache.enable=1' >> /usr/local/etc/php/conf.d/opcache.ini \
-    && echo 'opcache.memory_consumption=256' >> /usr/local/etc/php/conf.d/opcache.ini \
-    && echo 'opcache.max_accelerated_files=20000' >> /usr/local/etc/php/conf.d/opcache.ini \
-    && echo 'opcache.validate_timestamps=0' >> /usr/local/etc/php/conf.d/opcache.ini
-
-# ----------------------
-# Set working directory
-# ----------------------
-WORKDIR /var/www/html
-
-# ----------------------
-# Copy application
-# ----------------------
-COPY api/ .
-
-# ----------------------
-# Composer dependencies
-# ----------------------
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
-
-# ----------------------
-# Permissions
-# ----------------------
+# Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# ----------------------
-# Supervisor + Nginx + start script
-# ----------------------
+# Copy Supervisor + Nginx config + startup script
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/start.sh /start.sh
 RUN chmod +x /start.sh
 
-# ----------------------
 # Expose HTTP port
-# ----------------------
 EXPOSE 80
 
-# ----------------------
 # Start everything via start.sh
-# ----------------------
 CMD ["/start.sh"]
