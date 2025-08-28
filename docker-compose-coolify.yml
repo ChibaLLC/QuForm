@@ -1,10 +1,11 @@
----
 services:
   api: &api-environment
     image: ghcr.io/chiballc/quform/api:latest
     container_name: opnform-api
+    ports:
+      - "8005:80" # host:container
     volumes: &api-environment-volumes
-      - opnform_storage:/usr/share/nginx/html/storage
+      - - .:/var/www/html
     environment: &api-env
       APP_ENV: production
       # Database settings
@@ -59,11 +60,13 @@ services:
       interval: 60s
       timeout: 30s
       retries: 3
-      start_period: 70s # Allow time for first scheduled run and cache write
+      start_period: 70s
 
   ui:
     image: ghcr.io/chiballc/quform/client:latest
     container_name: opnform-client
+    ports:
+      - "3005:3000" # host:container
     env_file:
       - ./client/.env
     healthcheck:
@@ -73,26 +76,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 45s
-  ingress:
-    image: nginx:1
-    container_name: opnform-ingress
-    volumes:
-      - ./docker/nginx.conf:/etc/nginx/templates/default.conf.template
-    ports:
-      - 8005:80
-    environment:
-      - NGINX_MAX_BODY_SIZE=64m
-    depends_on:
-      api:
-        condition: service_started
-      ui:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "nginx -t && curl -f http://localhost/ || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
 
 volumes:
   opnform_storage:
