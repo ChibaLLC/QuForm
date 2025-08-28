@@ -5,12 +5,12 @@ WORKDIR /app
 # ---- Dependencies (for build) ----
 FROM base AS deps
 # Copy package manifests first for caching
-COPY package*.json ./
+COPY client/package*.json ./
 RUN npm ci
 
 # ---- Build Stage ----
 FROM deps AS build
-COPY . .
+COPY client/. .
 ENV NODE_OPTIONS=--max-old-space-size=8192
 RUN npm run build
 
@@ -22,7 +22,7 @@ ENV PORT=3000
 WORKDIR /app
 
 # Install only production dependencies
-COPY package*.json ./
+COPY client/package*.json ./
 RUN npm ci
 
 # Copy only the built output
