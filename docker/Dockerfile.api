@@ -3,7 +3,7 @@
 FROM php:8.4-fpm-alpine
 
 # ----------------------
-# Install runtime packages
+# Runtime dependencies
 # ----------------------
 RUN apk add --no-cache \
     bash \
@@ -17,10 +17,11 @@ RUN apk add --no-cache \
     icu-libs \
     oniguruma \
     postgresql-client \
-    supervisor
+    supervisor \
+    nginx
 
 # ----------------------
-# Install build dependencies and PHP extensions
+# Build dependencies + PHP extensions
 # ----------------------
 RUN apk add --no-cache --virtual .build-deps \
     $PHPIZE_DEPS \
@@ -53,7 +54,7 @@ RUN apk add --no-cache --virtual .build-deps \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # ----------------------
-# Configure PHP for production
+# PHP production config
 # ----------------------
 RUN echo 'memory_limit=512M' >> /usr/local/etc/php/conf.d/docker-php-memlimit.ini \
     && echo 'max_execution_time=300' >> /usr/local/etc/php/conf.d/docker-php-maxexectime.ini \
@@ -68,34 +69,35 @@ RUN echo 'memory_limit=512M' >> /usr/local/etc/php/conf.d/docker-php-memlimit.in
 WORKDIR /var/www/html
 
 # ----------------------
-# Copy application code
+# Copy application
 # ----------------------
 COPY api/ .
 
 # ----------------------
-# Install PHP dependencies
+# Composer dependencies
 # ----------------------
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
 
 # ----------------------
-# Set permissions
+# Permissions
 # ----------------------
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # ----------------------
-# Copy supervisor config and startup script
+# Supervisor + Nginx + start script
 # ----------------------
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/start.sh /start.sh
 RUN chmod +x /start.sh
 
 # ----------------------
-# Expose port for Coolify (or direct HTTP)
+# Expose HTTP port
 # ----------------------
-EXPOSE 8000
+EXPOSE 80
 
 # ----------------------
-# Start services using supervisor (PHP-FPM + queue workers)
+# Start everything via start.sh
 # ----------------------
 CMD ["/start.sh"]
