@@ -5,24 +5,31 @@ FROM php:8.4-cli-alpine AS builder
 
 WORKDIR /app
 
-# 1. Install build dependencies separately
-RUN apk add --no-cache \
-    bash \
-    git \
-    unzip \
+# Install build dependencies
+RUN apk add --no-cache --virtual .build-deps \
     autoconf \
     g++ \
     make \
-    libzip-dev \
-    libpng-dev \
     freetype-dev \
+    libpng-dev \
     libjpeg-turbo-dev \
     icu-dev \
+    libzip-dev \
     oniguruma-dev \
     postgresql-dev
 
-# 2. Install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+# Install runtime libraries
+RUN apk add --no-cache \
+    freetype \
+    libpng \
+    libjpeg-turbo \
+    icu-libs \
+    oniguruma
+
+# Configure and install PHP extensions
+RUN docker-php-ext-configure gd \
+    --with-freetype=/usr/include/freetype2 \
+    --with-jpeg=/usr/include \
     && docker-php-ext-install -j$(nproc) \
     gd \
     zip \
@@ -36,12 +43,12 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     opcache \
     xml
 
-# 3. Install Redis via PECL
-RUN apk add --no-cache autoconf g++ make \
-    && pecl install redis \
+# Install Redis
+RUN pecl install redis \
     && docker-php-ext-enable redis
 
-# 4. Install Composer
+# Remove build dependencies to reduce image size
+RUN apk del .build-deps# 4. Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # 5. Copy application and install dependencies
