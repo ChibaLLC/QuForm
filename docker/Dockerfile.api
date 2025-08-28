@@ -43,6 +43,8 @@ RUN apk add --no-cache \
     unzip \
     bash \
     icu-libs \
+    nginx \
+    supervisor \
     && rm -rf /var/cache/apk/*
 
 # Install build dependencies and PHP extensions

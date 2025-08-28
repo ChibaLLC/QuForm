@@ -23,7 +23,7 @@ services:
     env_file:
       - ./api/.env
     healthcheck:
-      test: ["CMD-SHELL", "php /usr/share/nginx/html/artisan about || exit 1"]
+      test: ["CMD-SHELL", "php /var/www/html/artisan about || exit 1"]
       interval: 30s
       timeout: 15s
       retries: 3
